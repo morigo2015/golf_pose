@@ -8,13 +8,14 @@ from my_util import Colours
 
 parser = argparse.ArgumentParser(description='Run keypoint detection')
 parser.add_argument("--device", default="cpu", help="Device to inference on")
-parser.add_argument("--video_file", default="sample_video.mp4", help="Input Video")
+parser.add_argument("--video_file", default=None, help="Input Video")  # default="sample_video.mp4",
+parser.add_argument("--output_file", default=None, help="Input Video")  # default="sample_video.mp4",
 
 args = parser.parse_args()
 
 MODE = "COCO"
 INPUT_FILE = "video/3.avi"
-output_file = f"video/{os.path.basename(INPUT_FILE)[:-4]}-output.avi"
+output_file = args.output_file if args.output_file else f"video/{os.path.basename(INPUT_FILE)[:-4]}-output.avi"
 
 if MODE == "COCO":
     protoFile = "pose/coco/pose_deploy_linevec.prototxt"
@@ -68,7 +69,11 @@ inWidth = 368
 inHeight = 368
 threshold = 0.1
 
-input_source = INPUT_FILE  # args.video_file
+# if args.video_file is None:
+#     input_source = INPUT_FILE  # args.video_file
+input_source = args.video_file if args.video_file else INPUT_FILE
+print(f"{input_source=} {output_file=}")
+
 cap = cv2.VideoCapture(input_source)
 hasFrame, frame = cap.read()
 
