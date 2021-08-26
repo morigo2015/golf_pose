@@ -4,6 +4,8 @@ import numpy as np
 import argparse
 import os
 
+from my_util import Colours
+
 parser = argparse.ArgumentParser(description='Run keypoint detection')
 parser.add_argument("--device", default="cpu", help="Device to inference on")
 parser.add_argument("--video_file", default="sample_video.mp4", help="Input Video")
@@ -11,7 +13,7 @@ parser.add_argument("--video_file", default="sample_video.mp4", help="Input Vide
 args = parser.parse_args()
 
 MODE = "COCO"
-INPUT_FILE = "video/2.avi"
+INPUT_FILE = "video/3.avi"
 output_file = f"video/{os.path.basename(INPUT_FILE)[:-4]}-output.avi"
 
 if MODE == "COCO":
@@ -36,11 +38,31 @@ elif MODE == "MPI":
                   "Right Ankle": 10, "Left Hip": 11, "Left Knee": 12, "Left Ankle": 13, "Chest": 14,
                   "Background": 15}
 
-ARM_FOLD = ["Neck", "Right Shoulder", "Left Shoulder"]
+KP_GROUPS = [("arms", Colours.BGR_RED, ("Right Elbow", "Right Wrist", "Left Elbow", "Left Wrist")),
+             ("shoulders", Colours.BGR_BLUE, ("Neck", "Right Shoulder", "Left Shoulder",))]
+
+ARM_FOLD = ["Neck", "Right Shoulder", "Left Shoulder", ]
 # ARM_FOLD = ["Right Elbow", "Right Wrist", "Left Elbow", "Left Wrist"]
 # ARM_FOLD = ["Neck", "Right Shoulder", "Right Elbow", "Right Wrist", "Left Shoulder", "Left Elbow", "Left Wrist"]
 ARM_FOLD_IDS = [KEY_POINTS[kp] for kp in KEY_POINTS if kp in ARM_FOLD]
 print(f"{ARM_FOLD_IDS=}")
+
+
+def _get_colour(key_point_id):
+    for grp in KP_GROUPS:
+        if key_point_id in [KEY_POINTS[kp_name] for kp_name in grp[2]]:
+            return grp[1]
+    return None
+
+
+def _draw_kp(kp_id, kp_colour):
+    if kp_id is None:
+        return
+    if kp_colour:
+        cv2.circle(frame, points[kp_id], 8, kp_colour, thickness=-1, lineType=cv2.FILLED)
+    else:
+        cv2.circle(frame, points[kp_id], 3, Colours.BGR_GRAY, thickness=-1, lineType=cv2.FILLED)
+
 
 inWidth = 368
 inHeight = 368
@@ -95,9 +117,9 @@ while cv2.waitKey(1) < 0:
         y = (frameHeight * point[1]) / H
 
         if prob > threshold:
-            cv2.circle(frameCopy, (int(x), int(y)), 8, (0, 255, 255), thickness=-1, lineType=cv2.FILLED)
-            cv2.putText(frameCopy, "{}".format(i), (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2,
-                        lineType=cv2.LINE_AA)
+            # cv2.circle(frameCopy, (int(x), int(y)), 8, (0, 255, 255), thickness=-1, lineType=cv2.FILLED)
+            # cv2.putText(frameCopy, "{}".format(i), (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2,
+            #             lineType=cv2.LINE_AA)
 
             # Add the point to the list if the probability is greater than the threshold
             points.append((int(x), int(y)))
@@ -109,13 +131,17 @@ while cv2.waitKey(1) < 0:
         partA = pair[0]
         partB = pair[1]
 
-        if not (partA in ARM_FOLD_IDS and partB in ARM_FOLD_IDS):
-            continue  # skip key points which are not in arm_fold
+        colour_A = _get_colour(partA)
+        colour_B = _get_colour(partB)
+
+        _draw_kp(partA, colour_A)
+        _draw_kp(partB, colour_B)
 
         if points[partA] and points[partB]:
-            cv2.line(frame, points[partA], points[partB], (0, 255, 255), 3, lineType=cv2.LINE_AA)
-            cv2.circle(frame, points[partA], 8, (0, 0, 255), thickness=-1, lineType=cv2.FILLED)
-            cv2.circle(frame, points[partB], 8, (0, 0, 255), thickness=-1, lineType=cv2.FILLED)
+            if colour_A and colour_B and colour_A == colour_B:
+                cv2.line(frame, points[partA], points[partB], colour_A, thickness=3, lineType=cv2.LINE_AA)
+            else:
+                cv2.line(frame, points[partA], points[partB], Colours.BGR_GRAY, thickness=1, lineType=cv2.LINE_AA)
 
     cv2.putText(frame, "time taken = {:.2f} sec".format(time.time() - t), (50, 50), cv2.FONT_HERSHEY_COMPLEX, .8,
                 (255, 50, 0), 2, lineType=cv2.LINE_AA)
